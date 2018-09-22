@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!--Top Button-->
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!--Save-->
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="#042800"
+            android:text="@string/save"
+            android:textColor="#ffffff"
+            android:textSize="@dimen/h1"
+            android:textStyle="bold"/>
+        <!--Camera-->
+        <TextView
+            android:textColor="#ffffff"
+            android:background="#0055ff"
+            android:textStyle="bold"
+            android:textSize="@dimen/h1"
+            android:gravity="center"
+            android:text="@string/camera"
+            android:layout_weight="3"
+            android:layout_width="0dp"
+            android:layout_height="match_parent" />
+
+        <!--Cancle-->
+
+        <Button
+            android:id="@+id/btnCancel"
+            android:textColor="#ffffff"
+            android:background="#f90a02"
+            android:textStyle="bold"
+            android:textSize="@dimen/h1"
+            android:text="@string/cancel"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content" />
+
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!--Result QR Code&Vehicle-->
+        <TextView
+            android:layout_margin="20dp"
+            android:id="@+id/txtResult"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="none"
+            android:textSize="@dimen/h1" />
+
+        <!--Result QR Code&Vehicle-->
+        <TextView
+            android:layout_margin="20dp"
+            android:id="@+id/txtResult2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="none"
+            android:textSize="@dimen/h1" />
+
+    </LinearLayout>
+    <!--Camera-->
+    <LinearLayout
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:padding="20dp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!--Left-->
+        <ImageView
+            android:layout_marginRight="10dp"
+            android:scaleType="centerInside"
+            android:layout_weight="1"
+            android:id="@+id/imvCameraC"
+            android:background="#8b8b8b"
+            android:src="@drawable/camera"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content" />
+
+        <!--Right-->
+        <ImageView
+            android:layout_marginLeft="10dp"
+            android:scaleType="centerInside"
+            android:layout_weight="1"
+            android:id="@+id/imvCameraD"
+            android:background="#8b8b8b"
+            android:src="@drawable/camera"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
+
+</LinearLayout>
