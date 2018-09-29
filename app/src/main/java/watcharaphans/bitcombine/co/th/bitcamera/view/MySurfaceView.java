@@ -1,11 +1,6 @@
 package watcharaphans.bitcombine.co.th.bitcamera.view;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.RectF;
 import android.hardware.Camera;
 import android.os.Environment;
 import android.util.AttributeSet;
@@ -22,8 +17,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
 
-import watcharaphans.bitcombine.co.th.bitcamera.R;
-
 @SuppressWarnings("deprecation")
 public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback {
 
@@ -31,10 +24,6 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
 
     private static Context mContext;
     private static Camera mCamera;
-    private Paint mPaint;
-    private Bitmap mImage;
-    private int mCenterX, mCenterY;
-    private RectF mOvalBound;
 
     public String imageC;
 
@@ -54,9 +43,6 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
         SurfaceHolder holder = getHolder();
         holder.addCallback(this);
         holder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
-
-        mPaint = new Paint();
-        mImage = BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher);
     }
 
     @Override
@@ -65,12 +51,17 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
             mCamera = Camera.open();
             setWillNotDraw(false);
             mCamera.setPreviewDisplay(holder);
-            mCamera.autoFocus(new Camera.AutoFocusCallback() {
+
+            Camera.Parameters params = mCamera.getParameters();
+            params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
+            mCamera.setParameters(params);
+
+            /*mCamera.autoFocus(new Camera.AutoFocusCallback() {
                 @Override
                 public void onAutoFocus(boolean b, Camera camera) {
                     Toast.makeText(mContext, "Focus!", Toast.LENGTH_SHORT).show();
                 }
-            });
+            });*/
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -96,9 +87,7 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
         Log.i(TAG, "Selected width: " + selected.width + ", Selected height: " + selected.height);
         params.setPreviewSize(selected.width, selected.height);
         //params.setPreviewFrameRate(20);
-        //params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
         mCamera.setParameters(params);
-
         setCameraDisplayOrientation();
         mCamera.startPreview();
     }
@@ -143,45 +132,6 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
         mCamera.setDisplayOrientation(result);
     }
 
-    @Override
-    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-        super.onSizeChanged(w, h, oldw, oldh);
-
-        mCenterX = getWidth() / 2;
-        mCenterY = getHeight() / 2;
-        mOvalBound = new RectF(mCenterX, mCenterY - 10, mCenterX + 45, mCenterY + 50);
-    }
-
-    @Override
-    protected void onDraw(Canvas canvas) {
-        /*mPaint.setFlags(Paint.ANTI_ALIAS_FLAG);
-
-        mPaint.setStyle(Paint.Style.FILL);
-        mPaint.setColor(Color.argb(200, 255, 255, 0));
-        canvas.drawCircle(mCenterX, mCenterY, 65, mPaint);
-
-        mPaint.setStyle(Paint.Style.FILL);
-        mPaint.setColor(Color.BLACK);
-        canvas.drawCircle(mCenterX - 15, mCenterY - 25, 12, mPaint);
-
-        mPaint.setStyle(Paint.Style.FILL);
-        mPaint.setColor(Color.BLACK);
-        canvas.drawCircle(mCenterX + 35, mCenterY - 32, 12, mPaint);
-
-
-        mPaint.setStyle(Paint.Style.FILL);
-        mPaint.setColor(Color.argb(128, 255, 0, 0));
-        canvas.drawOval(mOvalBound, mPaint);
-
-        mPaint.setStyle(Paint.Style.FILL);
-        mPaint.setColor(Color.BLUE);
-        mPaint.setTextSize(40);
-        mPaint.setTextAlign(Paint.Align.CENTER);
-        canvas.drawText("WoW! Android", mCenterX, getHeight() - 30, mPaint);
-
-        canvas.drawBitmap(mImage, 50, (getHeight() - mImage.getHeight()) / 2, null);*/
-    }
-
     private static class TakePictureCallback implements Camera.PictureCallback {
         @Override
         public void onPictureTaken(byte[] data, Camera camera) {
@@ -193,27 +143,7 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
                 fos.flush();
                 fos.close();
 
-                /*
-                File imageFile = new File(Environment.getExternalStorageDirectory(),
-                        "picture.jpg");
-                FileOutputStream fos = new FileOutputStream(imageFile);
-
-                Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length).copy(Bitmap.Config.ARGB_8888, true);
-                Canvas canvas = new Canvas(bitmap);
-
-                Paint paint = new Paint();
-                paint.setFlags(Paint.ANTI_ALIAS_FLAG);
-
-                paint.setStyle(Paint.Style.FILL);
-                paint.setColor(Color.argb(200, 255, 255, 0));
-                int pictureWidth = bitmap.getWidth();
-                int pictureHeight = bitmap.getHeight();
-                canvas.drawCircle(pictureWidth / 2, pictureHeight / 2, pictureHeight / 4, paint);
-
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 80, fos);
-                */
-
-                Toast.makeText(mContext, "Picture saved.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(mContext, "บันทึกภาพแล้ว", Toast.LENGTH_SHORT).show();
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             } catch (IOException e) {

@@ -27,7 +27,7 @@ import java.io.IOException;
 import it.sauronsoftware.ftp4j.FTPClient;
 import it.sauronsoftware.ftp4j.FTPDataTransferListener;
 import watcharaphans.bitcombine.co.th.bitcamera.R;
-import watcharaphans.bitcombine.co.th.bitcamera.TakePhotoActivity;
+import watcharaphans.bitcombine.co.th.bitcamera.TouchActivity;
 import watcharaphans.bitcombine.co.th.bitcamera.model.QrCodeData;
 import watcharaphans.bitcombine.co.th.bitcamera.utility.MyConstant;
 
@@ -140,7 +140,7 @@ public class MainFragment extends Fragment implements View.OnClickListener {
         switch (viewId) {
             case R.id.imvCameraC:
                 //todo
-                Intent intent = new Intent(getContext(), TakePhotoActivity.class);
+                Intent intent = new Intent(getContext(), TouchActivity.class);
                 intent.putExtra("file_name_c", qrCodeData.fileNameC);
                 startActivity(intent);
                 break;
