@@ -20,10 +20,10 @@ public class TakePhotoActivity extends AppCompatActivity implements View.OnClick
         Intent intent = getIntent();
         String fileNameC = intent.getStringExtra("file_name_c");
 
-        surfaceView = findViewById(R.id.surfaceView);
+        surfaceView = (MySurfaceView) findViewById(R.id.surfaceView);
         surfaceView.imageC = fileNameC;
 
-        ImageView takePhotoImageView = findViewById(R.id.imvTakePhoto);
+        ImageView takePhotoImageView = (ImageView) findViewById(R.id.imvTakePhoto);
         takePhotoImageView.setOnClickListener(this);
     }
 

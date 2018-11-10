@@ -1,11 +1,13 @@
 package watcharaphans.bitcombine.co.th.bitcamera.fragment;
 
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.FileObserver;
 import android.os.StrictMode;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
@@ -21,17 +23,25 @@ import android.widget.Toast;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 
 import it.sauronsoftware.ftp4j.FTPClient;
 import it.sauronsoftware.ftp4j.FTPDataTransferListener;
+import watcharaphans.bitcombine.co.th.bitcamera.MainActivity;
 import watcharaphans.bitcombine.co.th.bitcamera.R;
-import watcharaphans.bitcombine.co.th.bitcamera.TouchActivity;
 import watcharaphans.bitcombine.co.th.bitcamera.model.QrCodeData;
+import watcharaphans.bitcombine.co.th.bitcamera.service.UploadTask;
 import watcharaphans.bitcombine.co.th.bitcamera.utility.MyConstant;
 
+import static watcharaphans.bitcombine.co.th.bitcamera.MainActivity.FILENAME_C;
+import static watcharaphans.bitcombine.co.th.bitcamera.MainActivity.FILENAME_D;
+
 public class MainFragment extends Fragment implements View.OnClickListener {
+
+    private static final String TAG = MainFragment.class.getName();
 
     private String resultQRString;
     private ImageView cameraCImageView, cameraDImageView;
@@ -61,6 +71,58 @@ public class MainFragment extends Fragment implements View.OnClickListener {
             this.qrCode = bundle.getString("Result");
             this.qrCodeData = new QrCodeData(this.qrCode);
         }
+
+        monitorDirectoryChange();
+    }
+
+    private FileObserver observer;
+
+    private void monitorDirectoryChange() {
+        final String pathToWatch = getPublicStorageDir().getAbsolutePath();
+        observer = new FileObserver(pathToWatch) {
+            @Override
+            public void onEvent(int event, final String file) {
+                //if(event == FileObserver.CREATE && !file.equals(".probe")){ // check if its a "create" and not equal to .probe because thats created every time camera is launched
+                //}
+                if (event == FileObserver.CREATE) {
+                    String msg = "File created [" + pathToWatch + "/" + file + "]";
+                    Log.d(TAG, msg);
+                    //Toast.makeText(getContext(), msg, Toast.LENGTH_SHORT).show();
+
+                    final String filePath = pathToWatch + "/" + file;
+                    Log.i(TAG, "Before UploadTask execute.");
+                    UploadTask uploadTask = new UploadTask(
+                            filePath,
+                            new UploadTask.UploadTaskCallback() {
+                                @Override
+                                public void onUploadSuccess() {
+                                    Log.i(TAG, "onUploadSuccess");
+                                    // ลบไฟล์ทิ้งไป
+                                    File file = new File(filePath);
+                                    if (file.delete()) {
+                                        Log.i(TAG, "Delete file successfully");
+                                    } else {
+                                        Log.e(TAG, "Error deleting file");
+                                    }
+                                }
+
+                                @Override
+                                public void onUploadFailed() {
+                                    // ไม่ต้องทำอะไร, รอเก็บตก
+                                }
+                            }
+                    );
+                    uploadTask.execute();
+                }
+            }
+        };
+        observer.startWatching(); //START OBSERVING
+    }
+
+    @Override
+    public void onActivityCreated(@Nullable Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+        ((MainActivity) getActivity()).setToolbarVisibility(View.GONE);
     }
 
     @Nullable
@@ -73,7 +135,7 @@ public class MainFragment extends Fragment implements View.OnClickListener {
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        TextView textView = view.findViewById(R.id.txtResult);
+        TextView textView = (TextView) view.findViewById(R.id.txtResult);
         String styledText = "<font color='blue'>" + this.qrCodeData.id + "</font>" + ", " + this.qrCodeData.licenseCar;
         textView.setText(Html.fromHtml(styledText), TextView.BufferType.SPANNABLE);
 
@@ -83,19 +145,21 @@ public class MainFragment extends Fragment implements View.OnClickListener {
                 + this.qrCodeData.timeString.substring(2, 4);
         String DateTimeIn = DateIn + " " + TimeIn;
 
-        TextView textView2 = view.findViewById(R.id.txtResult2);
+        TextView textView2 = (TextView) view.findViewById(R.id.txtResult2);
         textView2.setText(DateTimeIn);
 
-        cameraCImageView = view.findViewById(R.id.imvCameraC);
+        cameraCImageView = (ImageView) view.findViewById(R.id.imvCameraC);
         cameraCImageView.setOnClickListener(this);
+        cameraCImageView.setTag(false);
 
-        cameraDImageView = view.findViewById(R.id.imvCameraD);
+        cameraDImageView = (ImageView) view.findViewById(R.id.imvCameraD);
         cameraDImageView.setOnClickListener(this);
+        cameraDImageView.setTag(false);
 
-        Button cancelButton = view.findViewById(R.id.btnCancel);
+        Button cancelButton = (Button) view.findViewById(R.id.btnCancel);
         cancelButton.setOnClickListener(this);
 
-        Button saveButton = view.findViewById(R.id.btnSave);
+        Button saveButton = (Button) view.findViewById(R.id.btnSave);
         saveButton.setOnClickListener(this);
     }
 
@@ -137,15 +201,13 @@ public class MainFragment extends Fragment implements View.OnClickListener {
     @Override
     public void onClick(View view) {
         int viewId = view.getId();
+        Intent intent;
         switch (viewId) {
             case R.id.imvCameraC:
-                //todo
-                Intent intent = new Intent(getContext(), TouchActivity.class);
-                intent.putExtra("file_name_c", qrCodeData.fileNameC);
-                startActivity(intent);
+                mListener.onClickCameraImageC();
                 break;
             case R.id.imvCameraD:
-                //todo
+                mListener.onClickCameraImageD();
                 break;
             case R.id.btnCancel:
                 getActivity()
@@ -153,13 +215,73 @@ public class MainFragment extends Fragment implements View.OnClickListener {
                         .popBackStack();
                 break;
             case R.id.btnSave:
-                if (cameraCABoolean || cameraDABoolean) {
-                    uploadPhotoToServer();
+                boolean imageCReady = (Boolean) cameraCImageView.getTag();
+                boolean imageDReady = (Boolean) cameraDImageView.getTag();
+
+                if (imageCReady && imageDReady) {
+                    //uploadPhotoToServer();
+                    File dir = getPublicStorageDir();
+
+                    File srcFileC = new File(getContext().getFilesDir(), FILENAME_C);
+                    File dstFileC = new File(dir, qrCodeData.fileNameC);
+                    Log.i(TAG, "SRC C --> " + srcFileC.getAbsolutePath());
+                    Log.i(TAG, "DST C --> " + dstFileC.getAbsolutePath());
+                    //boolean moveFileCResult = srcFileC.renameTo(dstFileC);
+                    try {
+                        fileCopy(srcFileC, dstFileC);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    File srcFileD = new File(getContext().getFilesDir(), FILENAME_D);
+                    File dstFileD = new File(dir, qrCodeData.fileNameD);
+                    Log.i(TAG, "SRC D --> " + srcFileD.getAbsolutePath());
+                    Log.i(TAG, "DST D --> " + dstFileD.getAbsolutePath());
+                    //boolean moveFileDResult = srcFileD.renameTo(dstFileD);
+                    try {
+                        fileCopy(srcFileD, dstFileD);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    /*if (moveFileCResult && moveFileDResult) {
+                        Toast.makeText(getContext(), "ย้ายรูปภาพเรียบร้อย", Toast.LENGTH_SHORT).show();
+                        Log.i(TAG, "ย้ายรูปภาพเรียบร้อย");
+                    } else {
+                        Toast.makeText(getContext(), "ย้ายรูปภาพไม่สำเร็จ!!!", Toast.LENGTH_SHORT).show();
+                        Log.i(TAG, "ย้ายรูปภาพไม่สำเร็จ!!!");
+                    }*/
                 } else {
-                    Toast.makeText(getActivity(), "Please Take Photo", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getActivity(), "กรุณาถ่ายรูปให้ครบ 2 รูป", Toast.LENGTH_SHORT).show();
                 }
                 break;
         }
+    }
+
+    public void fileCopy(File src, File dst) throws IOException {
+        FileInputStream inStream = new FileInputStream(src);
+        FileOutputStream outStream = new FileOutputStream(dst);
+        FileChannel inChannel = inStream.getChannel();
+        FileChannel outChannel = outStream.getChannel();
+        inChannel.transferTo(0, inChannel.size(), outChannel);
+        inStream.close();
+        outStream.close();
+    }
+
+    public File getPublicStorageDir() {
+        // Get the directory for the user's public pictures directory.
+        //Log.i(TAG, "DIR --> " + Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).getAbsolutePath());
+
+        File appDir = new File(Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_PICTURES), "BitCamera");
+        File dir = new File(appDir, qrCodeData.dirName);
+        if (dir.mkdirs()) {
+            Log.i(TAG, "Directory " + dir.getAbsolutePath() + " created successfully");
+        } else {
+            Log.e(TAG, "Directory already exists or error creating directory: " + dir.getAbsolutePath());
+        }
+
+        return dir;
     }
 
     public class MyCheckUploadListener implements FTPDataTransferListener {
@@ -227,6 +349,16 @@ public class MainFragment extends Fragment implements View.OnClickListener {
         file.delete();
     }
 
+    public void setImageViewC(Bitmap bitmap) {
+        cameraCImageView.setImageBitmap(bitmap);
+        cameraCImageView.setTag(true);
+    }
+
+    public void setImageViewD(Bitmap bitmap) {
+        cameraDImageView.setImageBitmap(bitmap);
+        cameraDImageView.setTag(true);
+    }
+
     private void showPhoto(int requestCode) {
         try {
             // ทดสอบภาษาไทย
@@ -275,4 +407,18 @@ public class MainFragment extends Fragment implements View.OnClickListener {
         }
 
     }// show Photo
+
+    private MainFragmentListener mListener;
+
+    @Override
+    public void onAttach(Context context) {
+        super.onAttach(context);
+        mListener = (MainFragmentListener) context;
+    }
+
+    public interface MainFragmentListener {
+        public void onClickCameraImageC();
+
+        public void onClickCameraImageD();
+    }
 }

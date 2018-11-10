@@ -6,12 +6,17 @@ import android.content.Context;
 import android.graphics.Rect;
 import android.hardware.Camera;
 import android.hardware.Camera.AutoFocusCallback;
+import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.WindowManager;
+import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +25,8 @@ import java.util.List;
 public class CameraPreview implements SurfaceHolder.Callback {
 
     private Context mContext;
+    private CameraPreviewCallback callback;
+    private String fileName;
 
     private Camera mCamera = null;
     //public Camera.Parameters params;
@@ -29,12 +36,50 @@ public class CameraPreview implements SurfaceHolder.Callback {
 
     public int isCamOpen = 0;
     public boolean isSizeSupported = false;
+    private Handler handler;
+
+    private Runnable runnable = new Runnable() {
+        @Override
+        public void run() {
+            if (mCamera == null) return;
+
+            mCamera.cancelAutoFocus();
+            mCamera.stopPreview();
+
+            Camera.Parameters params = mCamera.getParameters();
+            params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
+
+            final List<Camera.Area> focusList = new ArrayList<Camera.Area>();
+            Camera.Area focusArea = new Camera.Area(new Rect(-100, -100, 100, 100), 1000);
+            focusList.add(focusArea);
+            params.setFocusAreas(focusList);
+            params.setMeteringAreas(focusList);
+            mCamera.setParameters(params);
+            mCamera.startPreview();
+
+            final Handler handler = new Handler();
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (mCamera == null) return;
+
+                    mCamera.autoFocus(new AutoFocusCallback() {
+                        @Override
+                        public void onAutoFocus(boolean b, Camera camera) {
+                            callback.onCameraFocus(true);
+                        }
+                    });
+                }
+            }, 200); //200 millisecond delay
+        }
+    };
 
     private final static String TAG = "CameraPreview";
 
-    public CameraPreview(Context context, CameraPreviewCallback callback) {
+    public CameraPreview(Context context, CameraPreviewCallback callback, String fileName) {
         this.mContext = context;
         this.callback = callback;
+        this.fileName = fileName;
     }
 
     private int openCamera() {
@@ -51,6 +96,7 @@ public class CameraPreview implements SurfaceHolder.Callback {
         Camera.Parameters params = mCamera.getParameters();
         List<Camera.Size> sizes = params.getSupportedPreviewSizes();
         Camera.Size selected = sizes.get(0);
+        Log.i(TAG, "Width:" + selected.width + ", Height: " + selected.height);
         params.setPreviewSize(selected.width, selected.height);
         params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
 
@@ -59,14 +105,23 @@ public class CameraPreview implements SurfaceHolder.Callback {
         focusList.add(focusArea);
         params.setFocusAreas(focusList);
         params.setMeteringAreas(focusList);
+        params.setFlashMode(Camera.Parameters.FLASH_MODE_AUTO);
         mCamera.setParameters(params);
-        mCamera.autoFocus(new AutoFocusCallback() {
-            @Override
-            public void onAutoFocus(boolean b, Camera camera) {
-                callback.onCameraFocus(true);
-            }
-        });
         mCamera.startPreview();
+
+        // สั่งให้กล้อง auto-focus หลังจาก delay 200ms
+        final Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mCamera.autoFocus(new AutoFocusCallback() {
+                    @Override
+                    public void onAutoFocus(boolean b, Camera camera) {
+                        callback.onCameraFocus(true);
+                    }
+                });
+            }
+        }, 200); //200 millisecond delay
 
         try {
             mCamera.setPreviewDisplay(sHolder);
@@ -134,31 +189,11 @@ public class CameraPreview implements SurfaceHolder.Callback {
                 }
             });
 
-            Handler handler = new Handler();
-            handler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    mCamera.cancelAutoFocus();
-                    mCamera.stopPreview();
-
-                    Camera.Parameters params = mCamera.getParameters();
-                    params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
-
-                    final List<Camera.Area> focusList = new ArrayList<Camera.Area>();
-                    Camera.Area focusArea = new Camera.Area(new Rect(-100, -100, 100, 100), 1000);
-                    focusList.add(focusArea);
-                    params.setFocusAreas(focusList);
-                    params.setMeteringAreas(focusList);
-                    mCamera.setParameters(params);
-                    mCamera.autoFocus(new AutoFocusCallback() {
-                        @Override
-                        public void onAutoFocus(boolean b, Camera camera) {
-                            callback.onCameraFocus(true);
-                        }
-                    });
-                    mCamera.startPreview();
-                }
-            }, 3000);
+            if (handler != null) {
+                handler.removeCallbacks(runnable);
+            }
+            handler = new Handler();
+            handler.postDelayed(runnable, 3000);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -200,12 +235,78 @@ public class CameraPreview implements SurfaceHolder.Callback {
         mCamera.setDisplayOrientation(result);
     }
 
-    private CameraPreviewCallback callback;
+    public void takePicture() {
+        Camera.Parameters params = mCamera.getParameters();
+        List<Camera.Size> sizes = params.getSupportedPictureSizes();
+        Camera.Size selected = sizes.get(0);
+        params.setPictureSize(selected.width, selected.height);
+        //params.setPictureSize(700, 500);
+        //params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+        //mCamera.setParameters(params);
+        /*mCamera.autoFocus(new Camera.AutoFocusCallback() {
+            @Override
+            public void onAutoFocus(boolean b, Camera camera) {
+                MySurfaceView.TakePictureCallback callback = new MySurfaceView.TakePictureCallback();
+
+            }
+        });*/
+        mCamera.takePicture(null, null, null, new Camera.PictureCallback() {
+            @Override
+            public void onPictureTaken(byte[] data, Camera camera) {
+                try {
+                    File imageFile = new File(mContext.getFilesDir(), fileName);
+                    FileOutputStream fos = new FileOutputStream(imageFile);
+                    fos.write(data);
+                    fos.flush();
+                    fos.close();
+
+                    Toast.makeText(mContext, "บันทึกภาพแล้ว", Toast.LENGTH_SHORT).show();
+
+                    callback.onPictureSaved();
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                //camera.startPreview();
+            }
+        });
+    }
+
+    public File getPublicStorageDir(String dirName) {
+        // Get the directory for the user's public pictures directory.
+        File file = new File(Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_PICTURES), dirName);
+        if (!file.mkdirs()) {
+            Log.e(TAG, "Directory not created");
+        }
+        return file;
+    }
+
+    public static final int FLASH_MODE_ON = 0;
+    public static final int FLASH_MODE_OFF = 1;
+    public static final int FLASH_MODE_AUTO = 2;
+
+    public void setFlashMode(int mode) {
+        Camera.Parameters params = mCamera.getParameters();
+        switch (mode) {
+            case FLASH_MODE_ON:
+                params.setFlashMode(Camera.Parameters.FLASH_MODE_ON);
+                break;
+            case FLASH_MODE_OFF:
+                params.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
+                break;
+            case FLASH_MODE_AUTO:
+                params.setFlashMode(Camera.Parameters.FLASH_MODE_AUTO);
+                break;
+        }
+        mCamera.setParameters(params);
+    }
 
     public interface CameraPreviewCallback {
         public void onCameraFocus(boolean isInitial);
+        public void onPictureSaved();
         public void onHello();
     }
-
-
 }
